@@ -5,7 +5,7 @@
 
     <!-- Public plugin name should be written in Title Case.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-name -->
-    <name>Tabby</name>
+    <name>Tabby С60</name>
 
     <!-- A displayed Vendor name or Organization ID displayed on the Plugins Page. -->
     <vendor url="https://tabbyml.com">TabbyML</vendor>
@@ -14,7 +14,7 @@
          Simple HTML elements (text formatting, paragraphs, and lists) can be added inside of <![CDATA[ ]]> tag.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/plugin-overview-page.html#plugin-description -->
     <description><![CDATA[
-        <h1 id="tabby-plugin-for-intellij-platform">Tabby Plugin for IntelliJ Platform</h1>
+        <h1 id="tabby-plugin-for-intellij-platform">Tabby Plugin for IntelliJ Platform С60 edition</h1>
         <p>Tabby is an AI coding assistant that can suggest multi-line code or full functions in real-time.</p>
         <br/>
         <p>For more information, please check out our <a href="https://tabbyml.com/">Website</a> and <a href="https://github.com/TabbyML/tabby">GitHub</a>.
@@ -47,7 +47,7 @@
                 parentId="editor"
                 instance="com.tabbyml.intellijtabby.settings.Configurable"
                 id="com.tabbyml.intellijtabby.settings.Configurable"
-                displayName="Tabby"/>
+                displayName="Tabby C60"/>
         <notificationGroup id="com.tabbyml.intellijtabby.notifications.info"
                            displayType="BALLOON"
                            bundle="strings"
@@ -59,14 +59,14 @@
         <projectService serviceInterface="com.tabbyml.intellijtabby.git.GitProvider"
                         serviceImplementation="com.tabbyml.intellijtabby.git.DummyGitProvider"/>
         <toolWindow
-                id="Tabby"
+                id="Tabby C60"
                 anchor="right"
                 icon="com.tabbyml.intellijtabby.Icons.Chat"
                 factoryClass="com.tabbyml.intellijtabby.widgets.ChatToolWindowFactory"/>
     </extensions>
 
     <actions>
-        <group id="Tabby.ToolsMenu" popup="true" text="Tabby" description="Tabby AI code assistant">
+        <group id="Tabby.ToolsMenu" popup="true" text="Tabby C60" description="Tabby AI code assistant">
             <add-to-group group-id="CodeMenu" anchor="after" relative-to-action="CodeCompletionGroup"/>
             <action id="Tabby.InlineCompletion.Trigger"
                     class="com.tabbyml.intellijtabby.actions.inlineCompletion.Trigger"
@@ -163,7 +163,7 @@
             </action>
         </group>
 
-        <group id="Tabby.EditorContext" popup="true" text="Tabby">
+        <group id="Tabby.EditorContext" popup="true" text="Tabby C60">
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
             <action id="Tabby.Chat.AddSelectionToChat"
                     class="com.tabbyml.intellijtabby.actions.chat.AddSelectionToChat"

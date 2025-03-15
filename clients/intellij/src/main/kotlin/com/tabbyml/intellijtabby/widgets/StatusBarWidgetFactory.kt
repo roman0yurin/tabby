@@ -25,13 +25,13 @@ class StatusBarWidgetFactory : StatusBarEditorBasedWidgetFactory() {
   }
 
   override fun getDisplayName(): String {
-    return "Tabby"
+    return "Tabby C60"
   }
 
   override fun createWidget(project: Project): StatusBarWidget {
     return object : EditorBasedStatusBarPopup(project, false) {
       private val messageBusConnection = project.messageBus.connect()
-      val text = "Tabby"
+      val text = "Tabby C60"
       var icon: Icon = AnimatedIcon.Default()
       var tooltip = "Tabby: Initializing"
 

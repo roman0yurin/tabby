@@ -12,7 +12,7 @@ class Configurable(private val project: Project) : Configurable {
   private val keymapSettings = project.serviceOrNull<KeymapSettings>()
 
   override fun getDisplayName(): String {
-    return "Tabby"
+    return "Tabby C60"
   }
 
   override fun createComponent(): JComponent {

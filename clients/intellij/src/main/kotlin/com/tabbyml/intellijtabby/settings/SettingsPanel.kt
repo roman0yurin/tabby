@@ -148,7 +148,7 @@ class SettingsPanel(private val project: Project) {
         CoroutineScope(Dispatchers.IO).launch {
           Thread.sleep(500) // FIXME: It seems that we need to wait for the KeymapPanel to be ready?
           invokeLater(ModalityState.stateForComponent(panel)) {
-            panel.showOption("Tabby")
+            panel.showOption("Tabby C60")
           }
         }
       }

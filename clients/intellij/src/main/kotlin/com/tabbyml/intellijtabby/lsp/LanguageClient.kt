@@ -259,7 +259,7 @@ class LanguageClient(private val project: Project) : com.tabbyml.intellijtabby.l
         val actions = params.actions.map { it.title }.toTypedArray()
         val selected = Messages.showDialog(
           params.message,
-          "Tabby",
+          "Tabby C60",
           actions,
           0,
           when (params.type) {

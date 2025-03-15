@@ -50,7 +50,7 @@ class ChatToolWindowFactory : ToolWindowFactory, DumbAware {
   }
 
   companion object {
-    const val TOOL_WINDOW_ID = "Tabby"
+    const val TOOL_WINDOW_ID = "Tabby C60"
   }
 }
 
