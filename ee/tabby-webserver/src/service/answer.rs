@@ -188,12 +188,12 @@ impl AnswerService {
                 CreateChatCompletionRequestArgs::default()
                     .messages(chat_messages)
                     .model(options.model_name.as_deref().unwrap_or(""))
-                    .presence_penalty(self.config.presence_penalty)
+//                     .presence_penalty(self.config.presence_penalty) ломает некоторые apenai модели
                     .build()
                     .expect("Failed to build chat completion request")
             };
 
-            let s = match self.chat.chat_stream(request).await {
+            let s = match self.chat.chat_stream(request.clone()).await {
                 Ok(s) => s,
                 Err(err) => {
                     warn!("Failed to create chat completion stream: {:?}", err);
@@ -210,7 +210,7 @@ impl AnswerService {
                                 break;
                             }
                         }
-                        error!("Failed to get chat completion chunk: {:?}", err);
+                        error!("Failed to get chat completion chunk in answer: {:?}\nRequest: {:#?}", err, request);
                         yield Err(anyhow!("Failed to get chat completion chunk: {:?}", err).into());
                         return;
                     }
