@@ -28,3 +28,43 @@ If you encounter any problem, please check out our [troubleshooting guide](https
 ## Development and Build
 
 To develop and build Tabby plugin, please clone [this directory](https://github.com/TabbyML/tabby/tree/main/clients/intellij) and import it into IntelliJ Idea.
+
+## Примечания по сборке плагина
+
+### 1. Установить зависимости (видимо для внутренней JS части) 
+Команды следует делать в корневой папке проекта
+```shell
+sudo    аnpm install -g pnpm
+pnpm add -D turbo\n
+pnpm install
+```
+
+### 2. Стандартные команды для сборки и тестирования
+./gradlew <команда>
+• buildPlugin  
+Соберёт архив (zip) плагина в директории build/distributions.  
+• runIde  
+Запустит «песочницу» (sandbox) IntelliJ IDE вместе с вашим плагином.  
+• publishPlugin  
+Публикует плагин в Marketplace (при наличии соответствующих настроек).  
+• test  
+Запускает тесты (если в вашем проекте есть тесты для плагина).
+
+
+### 3. Устранение возможных проблем
+
+1. Если не работает ввод с клавиатуры в окно tabby чата, в частности может не работать кирилица.
+Причина состоит в том что интерфейс tabby живет во встроенном браузере JCEF и этот браузер может некорректно работать 
+из-за настройки переменных окружения, в частности способа ввода с клавитуры ibus.
+Для исправления ошибки установите переменные окружения, можно в environment или через export
+```bash
+sudo nano /etc/environment
+
+LANG=en_US.UTF-8
+LC_ALL=en_US.UTF-8
+XMODIFIERS="@im=fcitx"
+GTK_IM_MODULE=fcitx
+QT_IM_MODULE=fcitx
+```
+
+

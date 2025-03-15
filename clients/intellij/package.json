@@ -3,6 +3,7 @@
   "private": true,
   "devDependencies": {
     "tabby-agent": "workspace:*",
-    "tabby-threads": "workspace:*"
+    "tabby-threads": "workspace:*",
+    "turbo": "^2.4.4"
   }
 }
