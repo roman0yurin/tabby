@@ -16,6 +16,17 @@ lazy_static! {
     static ref LANGUAGE_TAGS: HashMap<&'static str, TagsConfigurationSync> = {
         HashMap::from([
             (
+                "scala",
+                TagsConfigurationSync(
+                    TagsConfiguration::new(
+                        tree_sitter_scala::language(),
+                        include_str!("../../queries/scala.scm"),
+                        "",
+                    )
+                    .unwrap(),
+                ),
+            ),
+            (
                 "python",
                 TagsConfigurationSync(
                     TagsConfiguration::new(
@@ -48,7 +59,7 @@ lazy_static! {
                     .unwrap(),
                 ),
             ),
-            (
+           (
                 "kotlin",
                 TagsConfigurationSync(
                     TagsConfiguration::new(
