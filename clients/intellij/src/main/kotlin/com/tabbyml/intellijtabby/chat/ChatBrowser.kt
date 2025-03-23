@@ -67,6 +67,8 @@ class ChatBrowser(private val project: Project) : JBCefBrowser(
       }
     )
     .setEnableOpenDevToolsMenuItem(true)
+    .setMouseWheelEventEnable(true)
+    .setOffScreenRendering(true)
 ) {
   private val logger = logger<ChatBrowser>()
   private val gson = Gson()

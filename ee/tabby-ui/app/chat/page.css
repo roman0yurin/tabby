@@ -4,10 +4,6 @@ html {
   font-size: var(--vscode-font-size);
 }
 
-.client ::-webkit-scrollbar {
-  display: none;
-}
-
 .client-vscode body {
   --background: var(--vscode-editor-background);
   --foreground: var(--vscode-editor-foreground);
