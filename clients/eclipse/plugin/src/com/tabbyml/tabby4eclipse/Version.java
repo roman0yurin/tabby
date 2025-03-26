@@ -13,7 +13,7 @@ public class Version {
 		if (startIndex >= versionStr.length()) {
 			return;
 		}
-		int endIndex = versionStr.indexOf("-");
+		int endIndex = versionStr.indexOf("-", startIndex);
 		String numPart = (endIndex != -1) ? versionStr.substring(startIndex, endIndex)
 				: versionStr.substring(startIndex);
 

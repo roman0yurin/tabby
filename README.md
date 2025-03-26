@@ -1,7 +1,6 @@
 <div align="center">
   
 # 🐾 Tabby
-
 [📚 Docs](https://tabby.tabbyml.com/docs/welcome/) • [💬 Slack](https://links.tabbyml.com/join-slack) • [🗺️ Roadmap](https://tabby.tabbyml.com/docs/roadmap/)
 
 [![latest release](https://shields.io/github/v/release/TabbyML/tabby)](https://github.com/TabbyML/tabby/releases/latest)
@@ -32,6 +31,41 @@ Tabby is a self-hosted AI coding assistant, offering an open-source and on-premi
 * **02/05/2025** LDAP Authentication and better notification for background jobs coming in Tabby [v0.24.0](https://github.com/TabbyML/tabby/releases/tag/v0.24.0)!✨
 * **02/04/2025** [VSCode 1.20.0](https://marketplace.visualstudio.com/items/TabbyML.vscode-tabby/changelog) upgrade! @-mention files to add them as chat context, and edit inline with a new right-click option are available!
 * **01/10/2025** Tabby [v0.23.0](https://github.com/TabbyML/tabby/releases/tag/v0.23.0) featuring enhanced code browser experience and chat side panel improvements!
+
+## Сборка
+
+### Общий веб-интерфейс
+    Для сборки TS - web интерфейс нужно сделать следующее (в корне tabby):
+
+ ```bash
+    pnpm install #Установить актуальные зависимости
+    make update-ui #Собрать UI
+ ```
+
+### Плагин Intellij IDEA
+
+```bash
+ cd clients/intellij
+ ./gradlew buildPlugin ##Плагин будет находится в каталоге clients/intellij/build/distributions/intellij-tabby.zip
+```
+
+### Плагин для VSCode
+
+```bash
+ cd clients/vscode
+ pnpm run build
+ pnpm run vscode:package
+```
+
+### Сборка tabby сервера
+
+```bash
+cargo build --release #Из корня tabby
+# target/release/tabby
+```
+
+### Сборка eclipse плагина
+Следуйте инструкциям в файле clients/eclipse/Readme.md, для сборки и работы жалательно выбирать версию eclipse 2024.6
 
 
 

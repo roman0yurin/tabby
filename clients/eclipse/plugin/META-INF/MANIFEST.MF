@@ -16,6 +16,6 @@ Require-Bundle: org.eclipse.ui,
  org.eclipse.lsp4j.jsonrpc;bundle-version="0.23.1",
  org.eclipse.jgit;resolution:=optional,
  com.google.gson;bundle-version="2.11.0"
-Bundle-RequiredExecutionEnvironment: JavaSE-17
+Bundle-RequiredExecutionEnvironment: JavaSE-21
 Automatic-Module-Name: com.tabbyml.tabby4eclipse
 Bundle-ActivationPolicy: lazy
