@@ -6,6 +6,7 @@ mod rate_limit;
 pub use chat::create as create_chat;
 pub use completion::{build_completion_prompt, create};
 pub use embedding::create as create_embedding;
+pub use chat::create_multi_chat;
 
 fn create_reqwest_client(api_endpoint: &str) -> reqwest::Client {
     let builder = reqwest::Client::builder();

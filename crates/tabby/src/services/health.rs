@@ -39,7 +39,7 @@ impl HealthState {
 
         Self {
             model: to_model_name(&model_config.completion),
-            chat_model: to_model_name(&model_config.chat),
+            chat_model: to_model_name(&model_config.chat.first().cloned()),
             chat_device: chat_device.map(|x| x.to_string()),
             device: device.to_string(),
             arch: ARCH.to_string(),

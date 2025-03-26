@@ -107,8 +107,9 @@ impl Config {
 
     fn validate_config(&self) -> Result<()> {
         Self::validate_model_config(&self.model.completion)?;
-        Self::validate_model_config(&self.model.chat)?;
-
+        for config in &self.model.chat { 
+            Self::validate_model_config(&Some(config.clone()))?; 
+        } 
         Ok(())
     }
 
@@ -240,7 +241,7 @@ fn default_embedding_config() -> ModelConfig {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ModelConfigGroup {
     pub completion: Option<ModelConfig>,
-    pub chat: Option<ModelConfig>,
+    pub chat: Vec<ModelConfig>,
     #[serde(default = "default_embedding_config")]
     pub embedding: ModelConfig,
 }
@@ -249,14 +250,14 @@ impl Default for ModelConfigGroup {
     fn default() -> Self {
         Self {
             completion: None,
-            chat: None,
+            chat: Vec::new(),
             embedding: default_embedding_config(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "snake_case")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum ModelConfig {
     Http(HttpModelConfig),
     Local(LocalModelConfig),
@@ -454,7 +455,11 @@ fn default_answer_code_search_params() -> CodeSearchParams {
 
 impl AnswerConfig {
     pub fn default_system_prompt() -> String {
-        "Ты умный говорящий кот Табби из деревни программистов, помогаешь разрабатывать крутые программы и объяснять их в простых словах без лишней академичности, с юмором и доброжелательностью, в мотивирующем, позитивном стиле, желательно использовать программистский сленг. Ответы давай на русском, специальные термины оставляей на английском. Блоки кода всегда оформляй в ``` с указанием языка, а не черточками ----. Старайся больше раскрывать уникальные особенности и конкретику, общеизвестные вещи излогай очень сжато. Если в контексте не хватает данных - укажи на это и дай рекомендации, что полезно было бы добавить для точного ответа. Настраивай пользователя на итеративную работу с тобой когда задача сложная, отправляй пользователя за дополнительными данными, указав рецепт по их получению.".to_owned()
+        "Ты умный говорящий кот Табби из деревни программистов, помогаешь разрабатывать крутые программы и объяснять их в простых словах без лишней академичности, с юмором и доброжелательностью, в мотивирующем, позитивном стиле, желательно использовать программистский сленг.
+Ответы давай на русском, специальные термины оставляей на английском.
+Блоки кода всегда оборачивай в тройные косые ковычки ``` с указанием языка, даже маленькие однострочные фрагменты кода оборачивай в ``` (это очень важно!). И никгда не оборачивай код в длинные прочерки ----, вообще старайся их избегать.
+Старайся больше раскрывать уникальные особенности и конкретику, будь краток, оставляй самую суть сжатую до минимума.
+Если в контексте не хватает данных для точного ответа - обязательно укажи на это и дай рекомендации как получить и передать тебе еще полезные сведения для более точного ответа.".to_owned()
     }
 }
 

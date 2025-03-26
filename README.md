@@ -34,6 +34,12 @@ Tabby is a self-hosted AI coding assistant, offering an open-source and on-premi
 
 ## Сборка
 
+Подготовка репозитория (Нужно скачать lfs объекты): 
+```bash
+sudo apt-get install git-lfs
+git lfs install
+git lfs pull
+```
 ### Общий веб-интерфейс
     Для сборки TS - web интерфейс нужно сделать следующее (в корне tabby):
 

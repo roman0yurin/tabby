@@ -210,7 +210,7 @@ async fn load_model(config: &Config) {
         download_model_if_needed(&model.model_id, ModelKind::Completion).await;
     }
 
-    if let Some(ModelConfig::Local(ref model)) = config.model.chat {
+    if let Some(ModelConfig::Local(ref model)) = config.model.chat.first() {
         download_model_if_needed(&model.model_id, ModelKind::Chat).await;
     }
 
@@ -375,14 +375,14 @@ fn merge_args(config: &Config, args: &ServeArgs) -> Config {
     };
 
     if let Some(chat_model) = &args.chat_model {
-        if config.model.chat.is_some() {
+        if !config.model.chat.is_empty() {
             warn!("Overriding chat model from config.toml. The overriding behavior might surprise you. Consider setting the model in config.toml directly.");
         }
-        config.model.chat = Some(to_local_config(
+        config.model.chat = vec![to_local_config(
             chat_model,
             args.parallelism,
             args.chat_device.as_ref().unwrap_or(&args.device),
-        ));
+        )];
     }
 
     config

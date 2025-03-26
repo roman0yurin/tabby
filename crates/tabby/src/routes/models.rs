@@ -26,11 +26,19 @@ impl From<tabby_common::config::Config> for ModelInfo {
             }
         }
 
-        if let Some(tabby_common::config::ModelConfig::Http(chat_http_config)) = models.chat {
-            if let Some(models) = chat_http_config.supported_models {
-                http_model_configs.chat = Some(models.clone());
+        let mut aggregated_chat_models = Vec::new();
+        for config in models.chat {
+            if let tabby_common::config::ModelConfig::Http(chat_http_config) = config {
+                if let Some(supported) = chat_http_config.supported_models {
+                    aggregated_chat_models.extend(supported);
+                }
             }
         }
+        http_model_configs.chat = if aggregated_chat_models.is_empty() {
+            None
+        } else {
+            Some(aggregated_chat_models)
+        };
 
         http_model_configs
     }

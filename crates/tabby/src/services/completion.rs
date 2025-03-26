@@ -425,7 +425,7 @@ pub async fn create_completion_service_and_chat(
     code: Arc<dyn CodeSearch>,
     logger: Arc<dyn EventLogger>,
     completion: Option<ModelConfig>,
-    chat: Option<ModelConfig>,
+    chat: Vec<ModelConfig>,
 ) -> (
     Option<CompletionService>,
     Option<Arc<dyn CompletionStream>>,

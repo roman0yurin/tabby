@@ -12,7 +12,7 @@ pub async fn load_embedding(config: &ModelConfig) -> Arc<dyn Embedding> {
 
 pub async fn load_code_generation_and_chat(
     completion_model: Option<ModelConfig>,
-    chat_model: Option<ModelConfig>,
+    chat_model: Vec<ModelConfig>,
 ) -> (
     Option<Arc<CodeGeneration>>,
     Option<Arc<dyn CompletionStream>>,
@@ -29,18 +29,18 @@ pub async fn load_code_generation_and_chat(
 
 async fn load_completion_and_chat(
     completion_model: Option<ModelConfig>,
-    chat_model: Option<ModelConfig>,
+    chat_model: Vec<ModelConfig>
 ) -> (
     Option<Arc<dyn CompletionStream>>,
     Option<PromptInfo>,
     Option<Arc<dyn ChatCompletionStream>>,
 ) {
-    if let (Some(ModelConfig::Local(completion)), Some(ModelConfig::Local(chat))) =
-        (&completion_model, &chat_model)
-    {
-        let (completion, prompt, chat) =
-            llama_cpp_server::create_completion_and_chat(completion, chat).await;
-        return (Some(completion), Some(prompt), Some(chat));
+    if let (Some(ModelConfig::Local(completion)), chat_vec) = (&completion_model, &chat_model) {
+        if let Some(ModelConfig::Local(chat)) = chat_vec.first() {
+            let (completion, prompt, chat) =
+                llama_cpp_server::create_completion_and_chat(completion, chat).await;
+            return (Some(completion), Some(prompt), Some(chat));
+        }
     }
 
     let (completion, prompt) = if let Some(completion_model) = completion_model {
@@ -66,15 +66,20 @@ async fn load_completion_and_chat(
         (None, None)
     };
 
-    let chat = if let Some(chat_model) = chat_model {
-        match chat_model {
-            ModelConfig::Http(http) => Some(http_api_bindings::create_chat(&http).await),
-            ModelConfig::Local(llama) => {
-                Some(llama_cpp_server::create_chat_completion(&llama).await)
-            }
+    let chat: Option<Arc<dyn ChatCompletionStream>> = {
+        // Собираем HTTP модели из вектора
+        let http_models: Vec<_> = chat_model.iter().filter_map(|m| {
+            if let ModelConfig::Http(http) = m { Some(http.clone()) } else { None }
+        }).collect();
+        if !http_models.is_empty() {
+            // Если найдены HTTP модели, создаём чат через create_multi_chat
+            Some(http_api_bindings::create_multi_chat(http_models).await)
+        } else if let Some(ModelConfig::Local(local)) = chat_model.iter().find(|m| matches!(m, ModelConfig::Local(_))) {
+            // Если отсутствуют HTTP, ожидается единственная локальная модель, обрабатываем её
+            Some(llama_cpp_server::create_chat_completion(local).await)
+        } else {
+            None
         }
-    } else {
-        None
     };
 
     (completion, prompt, chat)
