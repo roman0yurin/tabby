@@ -13,12 +13,13 @@ import type {
 } from 'tabby-chat-panel'
 import { twMerge } from 'tailwind-merge'
 
-import { AttachmentCodeItem, AttachmentDocItem, FileContext } from '@/lib/types'
+import { AttachmentCodeItem, FileContext } from '@/lib/types'
 
 import { Maybe } from '../gql/generates/graphql'
 
 export * from './chat'
 export * from './repository'
+export * from './attachment'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -170,20 +171,6 @@ export function getRangeTextFromAttachmentCode(code: AttachmentCodeItem) {
   return formatLineHashForCodeBrowser(range)
 }
 
-export function getContent(item: AttachmentDocItem) {
-  switch (item.__typename) {
-    case 'MessageAttachmentWebDoc':
-      return item.content
-    case 'MessageAttachmentIssueDoc':
-    case 'MessageAttachmentPullDoc':
-      return item.body
-    case 'MessageAttachmentCommitDoc':
-      return item.message
-  }
-
-  return ''
-}
-
 export function getPromptForChatCommand(command: ChatCommand) {
   switch (command) {
     case 'explain':
@@ -194,6 +181,8 @@ export function getPromptForChatCommand(command: ChatCommand) {
       return 'Generate documentation for the selected code:'
     case 'generate-tests':
       return 'Generate a unit test for the selected code:'
+    case 'code-review':
+      return 'Review the selected code and provide feedback:'
   }
 }
 

@@ -25,8 +25,9 @@ use access_policy::{AccessPolicyService, SourceIdAccessPolicy};
 use async_openai_alt::{
     error::OpenAIError,
     types::{
-        ChatCompletionRequestMessage, ChatCompletionRequestUserMessageArgs,
-        CreateChatCompletionRequestArgs,
+        ChatCompletionRequestAssistantMessageContent, ChatCompletionRequestMessage,
+        ChatCompletionRequestSystemMessageContent, ChatCompletionRequestUserMessageArgs,
+        ChatCompletionRequestUserMessageContent, CreateChatCompletionRequestArgs,
     },
 };
 use auth::{
@@ -49,7 +50,7 @@ use notification::NotificationService;
 use page::{
     CreatePageRunInput, CreatePageSectionRunInput, PageRunStream, SectionRunStream,
     ThreadToPageRunStream, UpdatePageContentInput, UpdatePageSectionContentInput,
-    UpdatePageSectionTitleInput,
+    UpdatePageSectionTitleInput, UpdatePageTitleInput,
 };
 use repository::RepositoryGrepOutput;
 use strum::IntoEnumIterator;
@@ -69,7 +70,7 @@ use validator::{Validate, ValidationErrors};
 use worker::WorkerService;
 
 use self::{
-    analytic::{AnalyticService, CompletionStats, DiskUsageStats},
+    analytic::{AnalyticService, ChatCompletionStats, CompletionStats, DiskUsageStats},
     auth::{
         JWTPayload, OAuthCredential, OAuthProvider, PasswordChangeInput, PasswordResetInput,
         RequestInvitationInput, RequestPasswordResetEmailInput, UpdateOAuthCredentialInput,
@@ -267,6 +268,48 @@ enum ModelHealthBackend {
 struct ModelBackendHealthInfo {
     /// Latency in milliseconds.
     latency_ms: i32,
+}
+
+#[derive(GraphQLObject, Clone, Debug)]
+pub struct ChatCompletionMessage {
+    pub role: String,
+    pub content: String,
+}
+
+impl From<ChatCompletionRequestMessage> for ChatCompletionMessage {
+    fn from(x: ChatCompletionRequestMessage) -> Self {
+        match x {
+            ChatCompletionRequestMessage::User(x) => ChatCompletionMessage {
+                role: "user".into(),
+                content: match x.content {
+                    ChatCompletionRequestUserMessageContent::Text(x) => x,
+                    _ => "".into(),
+                },
+            },
+            ChatCompletionRequestMessage::Assistant(x) => ChatCompletionMessage {
+                role: "assistant".into(),
+                content: match x.content {
+                    Some(ChatCompletionRequestAssistantMessageContent::Text(x)) => x,
+                    _ => "".into(),
+                },
+            },
+            ChatCompletionRequestMessage::Tool(x) => ChatCompletionMessage {
+                role: "tool".into(),
+                content: "".into(),
+            },
+            ChatCompletionRequestMessage::System(x) => ChatCompletionMessage {
+                role: "system".into(),
+                content: match x.content {
+                    ChatCompletionRequestSystemMessageContent::Text(x) => x,
+                    _ => "".into(),
+                },
+            },
+            ChatCompletionRequestMessage::Function(x) => ChatCompletionMessage {
+                role: "function".into(),
+                content: "".into(),
+            },
+        }
+    }
 }
 
 #[derive(Default)]
@@ -495,6 +538,12 @@ impl Query {
             is_chat_enabled: ctx.locator.worker().is_chat_enabled().await?,
             is_email_configured: ctx.locator.email().read_setting().await?.is_some(),
             allow_self_signup: ctx.locator.auth().allow_self_signup().await?,
+            disable_password_login: ctx
+                .locator
+                .setting()
+                .read_security_setting()
+                .await?
+                .disable_password_login,
             is_demo_mode: env::is_demo_mode(),
         })
     }
@@ -536,6 +585,34 @@ impl Query {
         ctx.locator
             .analytic()
             .daily_stats(start, end, users, languages.unwrap_or_default())
+            .await
+    }
+
+    async fn chat_daily_stats_in_past_year(
+        ctx: &Context,
+        users: Option<Vec<ID>>,
+    ) -> Result<Vec<ChatCompletionStats>> {
+        let users = users.unwrap_or_default();
+        let user = check_user(ctx).await?;
+        user.policy.check_read_analytic(&users)?;
+        ctx.locator
+            .analytic()
+            .chat_daily_stats_in_past_year(users)
+            .await
+    }
+
+    async fn chat_daily_stats(
+        ctx: &Context,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        users: Option<Vec<ID>>,
+    ) -> Result<Vec<ChatCompletionStats>> {
+        let users = users.unwrap_or_default();
+        let user = check_user(ctx).await?;
+        user.policy.check_read_analytic(&users)?;
+        ctx.locator
+            .analytic()
+            .chat_daily_stats(start, end, users)
             .await
     }
 
@@ -972,6 +1049,7 @@ pub struct ServerInfo {
     is_chat_enabled: bool,
     is_email_configured: bool,
     allow_self_signup: bool,
+    disable_password_login: bool,
     is_demo_mode: bool,
 }
 
@@ -1434,6 +1512,24 @@ impl Mutation {
     }
 
     // page mutations
+    async fn update_page_title(ctx: &Context, input: UpdatePageTitleInput) -> Result<bool> {
+        let user = check_user(ctx).await?;
+
+        let page_service = if let Some(service) = ctx.locator.page() {
+            service
+        } else {
+            return Err(CoreError::Forbidden("Page service is not enabled"));
+        };
+        input.validate()?;
+
+        let page = page_service.get(&input.id).await?;
+
+        user.policy.check_update_page(&page.author_id)?;
+
+        page_service.update_title(&input.id, &input.title).await?;
+        Ok(true)
+    }
+
     async fn update_page_content(ctx: &Context, input: UpdatePageContentInput) -> Result<bool> {
         let user = check_user(ctx).await?;
 
@@ -1713,7 +1809,7 @@ impl Subscription {
 
         thread
             .create_run(
-                &user.policy,
+                &user,
                 &thread_id,
                 &input.options,
                 input.thread.user_message.attachments.as_ref(),
@@ -1745,7 +1841,7 @@ impl Subscription {
             .await?;
 
         svc.create_run(
-            &user.policy,
+            &user,
             &input.thread_id,
             &input.options,
             input.additional_user_message.attachments.as_ref(),

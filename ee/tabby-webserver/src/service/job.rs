@@ -6,9 +6,11 @@ use tabby_schema::{
     job::{JobInfo, JobRun, JobService, JobStats},
     AsID, AsRowid, Result,
 };
+use tokio::fs::read_to_string;
+use tracing::warn;
 
 use super::graphql_pagination_to_filter;
-use crate::service::background_job::BackgroundJobEvent;
+use crate::{path::background_jobs_dir, service::background_job::BackgroundJobEvent};
 
 struct JobControllerImpl {
     db: DbConn,
@@ -57,19 +59,46 @@ impl JobService for JobControllerImpl {
                 .filter_map(|x| x.as_rowid().ok().map(|x| x as i32))
                 .collect()
         });
-        Ok(self
+
+        let mut jobs: Vec<JobRun> = self
             .db
             .list_job_runs_with_filter(rowids, jobs, limit, skip_id, backwards)
             .await?
             .into_iter()
             .map(Into::into)
-            .collect())
+            .collect();
+
+        for job in jobs.iter_mut() {
+            if job.stdout.is_empty() {
+                // it is possible that the job is starting to run and the stdout is not yet available
+                if let Ok(stdout) = self.read_job_stdout(job.id.as_rowid()?).await {
+                    job.stdout = stdout;
+                }
+            }
+        }
+        Ok(jobs)
     }
 
     async fn get_job_info(&self, command: String) -> Result<JobInfo> {
-        let job_run = self.db.get_latest_job_run(command.clone()).await;
+        let mut job_run: JobRun = match self.db.get_latest_job_run(command.clone()).await {
+            Some(job) => job.into(),
+            None => {
+                return Ok(JobInfo {
+                    last_job_run: None,
+                    command,
+                })
+            }
+        };
+
+        if job_run.stdout.is_empty() {
+            // it is possible that the job is starting to run and the stdout is not yet available
+            if let Ok(stdout) = self.read_job_stdout(job_run.id.as_rowid()?).await {
+                job_run.stdout = stdout;
+            }
+        }
+
         Ok(JobInfo {
-            last_job_run: job_run.map(JobRun::from),
+            last_job_run: Some(job_run),
             command,
         })
     }
@@ -81,6 +110,26 @@ impl JobService for JobControllerImpl {
             failed: stats.failed,
             pending: stats.pending,
         })
+    }
+}
+
+impl JobControllerImpl {
+    async fn read_job_stdout(&self, id: i64) -> Result<String> {
+        let log_file = background_jobs_dir()
+            .join(format!("{}", id))
+            .join("stdout.log");
+
+        if log_file.exists() {
+            match read_to_string(log_file).await {
+                Ok(stdout) => Ok(stdout),
+                Err(err) => {
+                    warn!("Failed to read log file: {:?}", err);
+                    Ok(String::new())
+                }
+            }
+        } else {
+            Ok(String::new())
+        }
     }
 }
 

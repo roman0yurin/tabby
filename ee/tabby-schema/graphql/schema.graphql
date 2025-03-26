@@ -34,6 +34,7 @@ enum Encryption {
 
 enum EventKind {
   COMPLETION
+  CHAT_COMPLETION
   SELECT
   VIEW
   DISMISS
@@ -153,12 +154,14 @@ input CreateMessageInput {
 
 input CreatePageRunInput {
   titlePrompt: String!
+  docQuery: DocQueryInput = null
   codeQuery: CodeQueryInput = null
 }
 
 input CreatePageSectionRunInput {
   pageId: ID!
   titlePrompt: String!
+  docQuery: DocQueryInput = null
 }
 
 input CreateThreadAndRunInput {
@@ -233,6 +236,7 @@ input RequestPasswordResetEmailInput {
 input SecuritySettingInput {
   allowedRegisterDomainList: [String!]!
   disableClientSideTelemetry: Boolean!
+  disablePasswordLogin: Boolean!
 }
 
 input SetPresetDocumentActiveInput {
@@ -242,6 +246,7 @@ input SetPresetDocumentActiveInput {
 
 input ThreadRunDebugOptionsInput {
   codeSearchParamsOverride: CodeSearchParamsOverrideInput = null
+  returnChatCompletionRequest: Boolean! = false
 }
 
 input ThreadRunOptionsInput {
@@ -296,6 +301,11 @@ input UpdatePageSectionContentInput {
 }
 
 input UpdatePageSectionTitleInput {
+  id: ID!
+  title: String!
+}
+
+input UpdatePageTitleInput {
   id: ID!
   title: String!
 }
@@ -372,8 +382,55 @@ type AttachmentCodeScores {
   embedding: Float!
 }
 
+type AttachmentCommitDoc {
+  sha: String!
+  message: String!
+  author: User
+  authorAt: DateTime!
+}
+
+type AttachmentDocHit {
+  doc: AttachmentDoc!
+  score: Float!
+}
+
+type AttachmentIssueDoc {
+  title: String!
+  link: String!
+  author: User
+  body: String!
+  closed: Boolean!
+}
+
+type AttachmentPullDoc {
+  title: String!
+  link: String!
+  author: User
+  body: String!
+  diff: String!
+  merged: Boolean!
+}
+
+type AttachmentWebDoc {
+  title: String!
+  link: String!
+  content: String!
+}
+
 type AuthProvider {
   kind: AuthProviderKind!
+}
+
+type ChatCompletionMessage {
+  role: String!
+  content: String!
+}
+
+type ChatCompletionStats {
+  start: DateTime!
+  end: DateTime!
+  userId: ID!
+  chats: Int!
 }
 
 type CompletionStats {
@@ -728,6 +785,7 @@ type Mutation {
   "Turn on persisted status for a thread."
   setThreadPersisted(threadId: ID!): Boolean!
   updateThreadMessage(input: UpdateMessageInput!): Boolean!
+  updatePageTitle(input: UpdatePageTitleInput!): Boolean!
   updatePageContent(input: UpdatePageContentInput!): Boolean!
   updatePageSectionTitle(input: UpdatePageSectionTitleInput!): Boolean!
   updatePageSectionContent(input: UpdatePageSectionContentInput!): Boolean!
@@ -832,6 +890,11 @@ type PageSectionAttachmentCodeFileList {
   codeFileList: AttachmentCodeFileList!
 }
 
+type PageSectionAttachmentDoc {
+  id: ID!
+  doc: [AttachmentDocHit!]!
+}
+
 type PageSectionContentCompleted {
   id: ID!
 }
@@ -930,6 +993,8 @@ type Query {
   jobs: [String!]!
   dailyStatsInPastYear(users: [ID!]): [CompletionStats!]!
   dailyStats(start: DateTime!, end: DateTime!, users: [ID!], languages: [Language!]): [CompletionStats!]!
+  chatDailyStatsInPastYear(users: [ID!]): [ChatCompletionStats!]!
+  chatDailyStats(start: DateTime!, end: DateTime!, users: [ID!]): [ChatCompletionStats!]!
   userEvents(after: String, before: String, first: Int, last: Int, users: [ID!], start: DateTime!, end: DateTime!): UserEventConnection!
   notifications: [Notification!]!
   diskUsageStats: DiskUsageStats!
@@ -998,6 +1063,7 @@ type RepositoryGrepOutput {
 type SectionAttachment {
   code: [AttachmentCode!]!
   codeFileList: AttachmentCodeFileList
+  doc: [AttachmentDoc!]!
 }
 
 type SectionConnection {
@@ -1013,6 +1079,7 @@ type SectionEdge {
 type SecuritySetting {
   allowedRegisterDomainList: [String!]!
   disableClientSideTelemetry: Boolean!
+  disablePasswordLogin: Boolean!
 }
 
 type ServerInfo {
@@ -1020,6 +1087,7 @@ type ServerInfo {
   isChatEnabled: Boolean!
   isEmailConfigured: Boolean!
   allowSelfSignup: Boolean!
+  disablePasswordLogin: Boolean!
   isDemoMode: Boolean!
 }
 
@@ -1064,7 +1132,12 @@ type ThreadAssistantMessageAttachmentsDoc {
 }
 
 type ThreadAssistantMessageCompleted {
-  id: ID!
+  "Debug data for the assistant message completion."
+  debugData: ThreadAssistantMessageCompletedDebugData
+}
+
+type ThreadAssistantMessageCompletedDebugData {
+  chatCompletionMessages: [ChatCompletionMessage!]!
 }
 
 type ThreadAssistantMessageContentDelta {
@@ -1170,13 +1243,15 @@ type WebContextSource implements ContextSourceId & ContextSource {
   sourceName: String!
 }
 
+union AttachmentDoc = AttachmentWebDoc | AttachmentIssueDoc | AttachmentPullDoc | AttachmentCommitDoc
+
 union MessageAttachmentDoc = MessageAttachmentWebDoc | MessageAttachmentIssueDoc | MessageAttachmentPullDoc | MessageAttachmentCommitDoc
 
 "Schema of page convert stream."
-union PageRunItem = PageCreated | PageContentDelta | PageContentCompleted | PageSectionsCreated | PageSectionAttachmentCodeFileList | PageSectionAttachmentCode | PageSectionContentDelta | PageSectionContentCompleted | PageCompleted
+union PageRunItem = PageCreated | PageContentDelta | PageContentCompleted | PageSectionsCreated | PageSectionAttachmentCodeFileList | PageSectionAttachmentCode | PageSectionAttachmentDoc | PageSectionContentDelta | PageSectionContentCompleted | PageCompleted
 
 "Schema of page convert stream."
-union SectionRunItem = PageSection | PageSectionAttachmentCodeFileList | PageSectionAttachmentCode | PageSectionContentDelta | PageSectionContentCompleted
+union SectionRunItem = PageSection | PageSectionAttachmentCodeFileList | PageSectionAttachmentCode | PageSectionAttachmentDoc | PageSectionContentDelta | PageSectionContentCompleted
 
 """
   Schema of thread run stream.

@@ -4,8 +4,10 @@ use validator::Validate;
 
 use crate::{
     juniper::relay::NodeType,
-    retrieval::{AttachmentCode, AttachmentCodeFileList, AttachmentCodeHit},
-    thread::{CodeQueryInput, MessageAttachment},
+    retrieval::{
+        AttachmentCode, AttachmentCodeFileList, AttachmentCodeHit, AttachmentDoc, AttachmentDocHit,
+    },
+    thread::{CodeQueryInput, DocQueryInput, MessageAttachment},
     Context,
 };
 
@@ -69,6 +71,13 @@ impl NodeType for PageSection {
 }
 
 #[derive(GraphQLInputObject, Validate)]
+pub struct UpdatePageTitleInput {
+    pub id: ID,
+    #[validate(length(min = 1, max = 256, code = "title", message = "title can not be empty"))]
+    pub title: String,
+}
+
+#[derive(GraphQLInputObject, Validate)]
 pub struct UpdatePageContentInput {
     pub id: ID,
     #[validate(length(
@@ -105,13 +114,21 @@ pub struct CreatePageRunInput {
 
     #[validate(nested)]
     #[graphql(default)]
+    pub doc_query: Option<DocQueryInput>,
+
+    #[validate(nested)]
+    #[graphql(default)]
     pub code_query: Option<CodeQueryInput>,
 }
 
-#[derive(GraphQLInputObject)]
+#[derive(GraphQLInputObject, Validate)]
 pub struct CreatePageSectionRunInput {
     pub page_id: ID,
     pub title_prompt: String,
+
+    #[validate(nested)]
+    #[graphql(default)]
+    pub doc_query: Option<DocQueryInput>,
 }
 
 #[derive(GraphQLEnum)]
@@ -145,11 +162,22 @@ pub struct PageSectionAttachmentCode {
     pub codes: Vec<AttachmentCodeHit>,
 }
 
+#[derive(GraphQLObject)]
+#[graphql(context = Context)]
+pub struct PageSectionAttachmentDoc {
+    pub id: ID,
+    pub doc: Vec<AttachmentDocHit>,
+}
+
 #[derive(GraphQLObject, Clone, Default)]
 #[graphql(context = Context)]
 pub struct SectionAttachment {
     pub code: Vec<AttachmentCode>,
+
+    // FIXME(meng): consider remove code file list from section attachment.
     pub code_file_list: Option<AttachmentCodeFileList>,
+
+    pub doc: Vec<AttachmentDoc>,
 }
 
 impl From<SectionAttachment> for MessageAttachment {
@@ -168,6 +196,7 @@ impl SectionAttachment {
         SectionAttachment {
             code: attachment.code.iter().map(Into::into).collect(),
             code_file_list: attachment.code_file_list.as_ref().map(Into::into),
+            doc: attachment.doc.iter().map(Into::into).collect(),
         }
     }
 
@@ -181,6 +210,12 @@ impl SectionAttachment {
         if let Some(code_file_list) = &other.code_file_list {
             if self.code_file_list.is_none() {
                 self.code_file_list = Some(code_file_list.clone());
+            }
+        }
+
+        for doc in &other.doc {
+            if !self.doc.iter().any(|d| d != doc) {
+                self.doc.push(doc.clone());
             }
         }
     }
@@ -228,6 +263,7 @@ pub enum PageRunItem {
 
     PageSectionAttachmentCodeFileList(PageSectionAttachmentCodeFileList),
     PageSectionAttachmentCode(PageSectionAttachmentCode),
+    PageSectionAttachmentDoc(PageSectionAttachmentDoc),
 
     PageSectionContentDelta(PageSectionContentDelta),
     PageSectionContentCompleted(PageSectionContentCompleted),
@@ -243,6 +279,7 @@ pub enum SectionRunItem {
 
     PageSectionAttachmentCodeFileList(PageSectionAttachmentCodeFileList),
     PageSectionAttachmentCode(PageSectionAttachmentCode),
+    PageSectionAttachmentDoc(PageSectionAttachmentDoc),
 
     PageSectionContentDelta(PageSectionContentDelta),
     PageSectionContentCompleted(PageSectionContentCompleted),

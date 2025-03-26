@@ -57,6 +57,7 @@ import { NewPageForm } from './new-page-form'
 import { NewSectionForm } from './new-section-form'
 import { PageContent } from './page-content'
 import { PageContext } from './page-context'
+import { PageTitle } from './page-title'
 import { SectionContent } from './section-content'
 import { SectionTitle } from './section-title'
 import {
@@ -181,7 +182,8 @@ export function Page() {
           content: '',
           attachments: {
             code: [],
-            codeFileList: null
+            codeFileList: null,
+            doc: []
           }
         }))
         setPendingSectionIds(new Set(data.sections.map(x => x.id)))
@@ -217,15 +219,37 @@ export function Page() {
               return {
                 ...x,
                 attachments: {
+                  ...x.attachments,
                   code: data.codes.map(x => ({
                     ...x.code,
                     extra: { scores: x.scores }
-                  })),
-                  codeFileList: x.attachments.codeFileList
+                  }))
                 }
               }
             }
 
+            return x
+          })
+        })
+        break
+      }
+      case 'PageSectionAttachmentDoc': {
+        setSections(prev => {
+          if (!prev || !prev.length) return prev
+
+          return prev.map(x => {
+            if (x.id === data.id) {
+              return {
+                ...x,
+                attachments: {
+                  ...x.attachments,
+                  doc: data.doc.map(x => ({
+                    ...x.doc,
+                    extra: { score: x.score }
+                  }))
+                }
+              }
+            }
             return x
           })
         })
@@ -288,7 +312,8 @@ export function Page() {
               pageId: pageId as string,
               attachments: {
                 code: [],
-                codeFileList: null
+                codeFileList: null,
+                doc: []
               }
             }
           ]
@@ -321,10 +346,7 @@ export function Page() {
                 ...x,
                 attachments: {
                   ...x.attachments,
-                  codeFileList: {
-                    ...data.codeFileList,
-                    __typename: 'AttachmentCodeFileList'
-                  }
+                  codeFileList: data.codeFileList
                 }
               }
             } else {
@@ -357,6 +379,28 @@ export function Page() {
         })
         break
       }
+      case 'PageSectionAttachmentDoc': {
+        setSections(prev => {
+          if (!prev || !prev.length) return prev
+
+          return prev.map(x => {
+            if (x.id === data.id) {
+              return {
+                ...x,
+                attachments: {
+                  ...x.attachments,
+                  doc: data.doc.map(x => ({
+                    ...x.doc,
+                    extra: { score: x.score }
+                  }))
+                }
+              }
+            }
+            return x
+          })
+        })
+        break
+      }
       case 'PageSectionContentCompleted': {
         stop.current()
         break
@@ -380,7 +424,8 @@ export function Page() {
         position: lastPosition + 1,
         attachments: {
           code: [],
-          codeFileList: null
+          codeFileList: null,
+          doc: []
         }
       }
 
@@ -394,7 +439,12 @@ export function Page() {
       .subscription(createPageSectionRunSubscription, {
         input: {
           pageId,
-          titlePrompt: title
+          titlePrompt: title,
+          docQuery: {
+            sourceIds: compact([page?.codeSourceId]),
+            content: title,
+            searchPublic: true
+          }
         }
       })
       .subscribe(res => {
@@ -489,7 +539,12 @@ export function Page() {
                 sourceId: codeSourceId,
                 content: titlePrompt
               }
-            : null
+            : null,
+          docQuery: {
+            sourceIds: compact([codeSourceId]),
+            content: titlePrompt,
+            searchPublic: true
+          }
         }
       })
       .subscribe(res => {
@@ -850,14 +905,16 @@ export function Page() {
                           loading={!page}
                           fallback={<SectionTitleSkeleton />}
                         >
-                          <h1
-                            className={cn('text-4xl font-semibold', {
-                              'animate-pulse text-muted-foreground':
-                                isGeneratingPageTitle
-                            })}
-                          >
-                            {page?.title}
-                          </h1>
+                          <PageTitle
+                            page={page}
+                            isGeneratingPageTitle={isGeneratingPageTitle}
+                            onUpdate={title => {
+                              setPage(p => {
+                                if (!p) return p
+                                return { ...p, title }
+                              })
+                            }}
+                          />
                         </LoadingWrapper>
                         <div className="my-4 flex gap-4 text-sm">
                           <LoadingWrapper

@@ -18,9 +18,10 @@ export type MessageMarkdownContextValue = {
   canWrapLongLines: boolean
   supportsOnApplyInEditorV2: boolean
   activeSelection?: FileContext
-  symbolPositionMap: Map<string, SymbolInfo | undefined>
+  symbolPositionMap: Map<string, SymbolInfo | null>
   openInEditor?: (target: FileLocation) => void
   lookupSymbol?: (keyword: string) => void
+  runShell?: (command: string) => Promise<void>
 }
 
 export const MessageMarkdownContext =

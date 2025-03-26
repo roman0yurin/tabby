@@ -3,10 +3,16 @@
 import React, { useMemo } from 'react'
 import { NodeViewProps, NodeViewWrapper } from '@tiptap/react'
 
-import { MARKDOWN_SOURCE_REGEX } from '@/lib/constants/regex'
+import {
+  MARKDOWN_COMMAND_REGEX,
+  MARKDOWN_FILE_REGEX,
+  MARKDOWN_SOURCE_REGEX,
+  MARKDOWN_SYMBOL_REGEX
+} from '@/lib/constants/regex'
 import { ContextSource, ContextSourceKind } from '@/lib/gql/generates/graphql'
 import { MentionAttributes } from '@/lib/types'
-import { cn } from '@/lib/utils'
+import { cn, resolveFileNameForDisplay } from '@/lib/utils'
+import { convertContextBlockToPlaceholder } from '@/lib/utils/markdown'
 import {
   IconCode,
   IconEmojiBook,
@@ -71,29 +77,73 @@ export function ThreadTitleWithMentions({
 }) {
   const contentWithTags = useMemo(() => {
     if (!message) return null
-
-    const firstLine = message.split('\n')[0] ?? ''
-    return firstLine.split(MARKDOWN_SOURCE_REGEX).map((part, index) => {
-      if (index % 2 === 1) {
-        const sourceId = part
-        const source = sources?.find(s => s.sourceId === sourceId)
-        if (source) {
-          return (
-            <Mention
-              key={index}
-              id={source.sourceId}
-              kind={source.sourceKind}
-              label={source.sourceName}
-              className="rounded-md border border-[#b3ada0] border-opacity-30 bg-[#e8e1d3] py-[1px] text-sm dark:bg-[#333333]"
-            />
-          )
-        } else {
+    let processedMessage = convertContextBlockToPlaceholder(message)
+    const partsWithSources = processedMessage
+      .split(MARKDOWN_SOURCE_REGEX)
+      .map((part, index) => {
+        if (index % 2 === 1) {
+          const sourceId = part.replace(/\\/g, '')
+          const source = sources?.find(s => s.sourceId === sourceId)
+          if (source) {
+            return (
+              <Mention
+                key={`source-${index}`}
+                id={source.sourceId}
+                kind={source.sourceKind}
+                label={source.sourceName}
+                className="rounded-md border border-[#b3ada0] border-opacity-30 bg-[#e8e1d3] py-[1px] text-sm dark:bg-[#333333]"
+              />
+            )
+          }
           return null
         }
+        return part
+      })
+    const finalContent = partsWithSources.map((part, index) => {
+      if (!part || React.isValidElement(part)) {
+        return part
       }
-      return part
-    })
-  }, [sources, message])
+      let textPart = part as string
 
+      textPart = textPart.replace(MARKDOWN_FILE_REGEX, (match, content) => {
+        try {
+          if (content.startsWith('{') && content.endsWith('}')) {
+            const fileInfo = JSON.parse(content)
+            const filename = resolveFileNameForDisplay(fileInfo.filepath)
+            return `@${filename}`
+          }
+          // Otherwise just use the content as is
+          return content
+        } catch (e) {
+          // If parse fails, return original
+          return match
+        }
+      })
+
+      textPart = textPart.replace(MARKDOWN_SYMBOL_REGEX, (match, content) => {
+        try {
+          if (content.startsWith('{') && content.endsWith('}')) {
+            const symbolInfo = JSON.parse(content)
+            if (symbolInfo.label) {
+              return `@${symbolInfo.label}`
+            }
+            const filename = resolveFileNameForDisplay(symbolInfo.filepath)
+            const range = symbolInfo.range
+              ? `:${symbolInfo.range.start}-${symbolInfo.range.end}`
+              : ''
+            return `@${filename}${range}`
+          }
+          return content
+        } catch (e) {
+          return match
+        }
+      })
+
+      return textPart.replace(MARKDOWN_COMMAND_REGEX, (_, cmdPart) => {
+        return `@${cmdPart.replace(/"/g, '')}`
+      })
+    })
+    return finalContent
+  }, [sources, message])
   return <div className={cn(className)}>{contentWithTags}</div>
 }

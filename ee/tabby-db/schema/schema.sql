@@ -63,7 +63,8 @@ CREATE TABLE server_setting(
   security_disable_client_side_telemetry BOOLEAN NOT NULL DEFAULT FALSE,
   network_external_url STRING NOT NULL DEFAULT 'http://localhost:8080'
   ,
-  billing_enterprise_license STRING
+  billing_enterprise_license STRING,
+  security_disable_password_login BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE TABLE email_setting(
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -175,11 +176,6 @@ CREATE TABLE thread_messages(
   role TEXT NOT NULL,
   content TEXT NOT NULL,
   -- Array of code attachments, in format of `ThreadMessageAttachmentCode`
-  code_attachments BLOB,
-  -- Array of client code attachments, in format of `ThreadMessageAttachmentClientCode`
-  client_code_attachments BLOB,
-  -- Array of doc attachments, in format of `ThreadMessageAttachmentDoc`
-  doc_attachments BLOB,
   created_at TIMESTAMP NOT NULL DEFAULT(DATETIME('now')),
   updated_at TIMESTAMP NOT NULL DEFAULT(DATETIME('now')),
   code_source_id VARCHAR(255),

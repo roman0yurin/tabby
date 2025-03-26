@@ -1,7 +1,9 @@
 import { createContext, RefObject } from 'react'
 import type {
+  ChangeItem,
   FileLocation,
   FileRange,
+  GetChangesParams,
   ListFileItem,
   ListFilesInWorkspaceParams,
   ListSymbolItem,
@@ -34,7 +36,7 @@ export type ChatContextValue = {
   onLookupSymbol?: (
     symbol: string,
     hints?: LookupSymbolHint[] | undefined
-  ) => Promise<SymbolInfo | undefined>
+  ) => Promise<SymbolInfo | null>
   openInEditor: (target: FileLocation) => Promise<boolean>
   openExternal: (url: string) => Promise<void>
   activeSelection: Context | null
@@ -47,12 +49,13 @@ export type ChatContextValue = {
   ) => Promise<ListFileItem[]>
   listSymbols?: (param: ListSymbolsParams) => Promise<ListSymbolItem[]>
   readFileContent?: (info: FileRange) => Promise<string | null>
-
+  getChanges?: (params: GetChangesParams) => Promise<ChangeItem[]>
   // for repo select
   selectedRepoId: string | undefined
   setSelectedRepoId: React.Dispatch<React.SetStateAction<string | undefined>>
   repos: RepositorySourceListQuery['repositoryList'] | undefined
   fetchingRepos: boolean
+  runShell?: (command: string) => Promise<void>
 }
 
 export const ChatContext = createContext<ChatContextValue>(

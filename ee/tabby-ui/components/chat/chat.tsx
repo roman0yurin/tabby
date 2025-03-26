@@ -9,11 +9,13 @@ import {
   uniqWith
 } from 'lodash-es'
 import type {
+  ChangeItem,
   ChatCommand,
   EditorContext,
   EditorFileContext,
   FileLocation,
   FileRange,
+  GetChangesParams,
   GitRepository,
   ListFileItem,
   ListFilesInWorkspaceParams,
@@ -61,8 +63,10 @@ import {
   findClosestGitRepository,
   getFileLocationFromContext,
   getPromptForChatCommand,
-  nanoid
+  nanoid,
+  processingPlaceholder
 } from '@/lib/utils'
+import { convertContextBlockToPlaceholder } from '@/lib/utils/markdown'
 
 import LoadingWrapper from '../loading-wrapper'
 import { ChatContext } from './chat-context'
@@ -70,6 +74,9 @@ import { ChatPanel, ChatPanelRef } from './chat-panel'
 import { ChatScrollAnchor } from './chat-scroll-anchor'
 import { EmptyScreen } from './empty-screen'
 import { convertTextToTiptapContent } from './form-editor/utils'
+
+import './git/utils'
+
 import { QuestionAnswerList } from './question-answer'
 import { QaPairSkeleton } from './skeletion'
 import { ChatRef, PromptFormRef } from './types'
@@ -93,7 +100,7 @@ interface ChatProps extends React.ComponentProps<'div'> {
   onLookupSymbol?: (
     symbol: string,
     hints?: LookupSymbolHint[] | undefined
-  ) => Promise<SymbolInfo | undefined>
+  ) => Promise<SymbolInfo | null>
   openInEditor: (target: FileLocation) => Promise<boolean>
   openExternal: (url: string) => Promise<void>
   chatInputRef: React.RefObject<PromptFormRef>
@@ -108,6 +115,8 @@ interface ChatProps extends React.ComponentProps<'div'> {
   listSymbols?: (param: ListSymbolsParams) => Promise<ListSymbolItem[]>
   readFileContent?: (info: FileRange) => Promise<string | null>
   setShowHistory: React.Dispatch<React.SetStateAction<boolean>>
+  runShell?: (command: string) => Promise<void>
+  getChanges?: (params: GetChangesParams) => Promise<ChangeItem[]>
 }
 
 export const Chat = React.forwardRef<ChatRef, ChatProps>(
@@ -139,6 +148,8 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
       readFileContent,
       listSymbols,
       setShowHistory,
+      runShell,
+      getChanges,
       ...props
     },
     ref
@@ -151,6 +162,7 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
     const [relevantContext, setRelevantContext] = React.useState<Context[]>([])
     const [activeSelection, setActiveSelection] =
       React.useState<Context | null>(null)
+
     // sourceId
     const [selectedRepoId, setSelectedRepoId] = React.useState<
       string | undefined
@@ -197,7 +209,7 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
                   content: x.content,
                   filepath: x.filepath ?? '',
                   startLine: x.startLine,
-                  git_url: ''
+                  gitUrl: ''
                 }
               })
             }
@@ -277,8 +289,6 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
     const onDeleteMessage = async (userMessageId: string) => {
       if (!threadId) return
 
-      // Stop generating first.
-      stop()
       const qaPair = qaPairs.find(o => o.user.id === userMessageId)
       if (!qaPair?.user || !qaPair.assistant) return
 
@@ -358,9 +368,9 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
         qaPairs: nextQaPairs
       })
 
-      setInput(userMessage.message)
-
-      const inputContent = convertTextToTiptapContent(userMessage.message)
+      const inputContent = convertTextToTiptapContent(
+        convertContextBlockToPlaceholder(userMessage.message)
+      )
       setInput({
         type: 'doc',
         content: inputContent
@@ -553,7 +563,6 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
         }
       ]
     }
-
     const handleSendUserChat = useLatest(
       async (userMessage: UserMessageWithOptionalId) => {
         if (isLoading) return
@@ -568,6 +577,12 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
             selectCodeContextContent ?? ''
           }\n${'```'}\n`
         }
+
+        // processing placeholder like contextCommand, file, symbol, etc.
+        userMessage.message = await processingPlaceholder(userMessage.message, {
+          getChanges,
+          readFileContent
+        })
 
         const newUserMessage: UserMessage = {
           ...userMessage,
@@ -795,7 +810,9 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
           initialized,
           listFileInWorkspace,
           readFileContent,
-          listSymbols
+          listSymbols,
+          runShell,
+          getChanges
         }}
       >
         <div className="flex justify-center overflow-x-hidden" {...props}>

@@ -1,8 +1,9 @@
-import { useContext, useMemo, useRef, useState } from 'react'
+import { useContext, useMemo, useRef } from 'react'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
 import * as z from 'zod'
 
+import { useSelectedRepository } from '@/lib/hooks/use-repositories'
 import { makeFormErrorHandler } from '@/lib/tabby/gql'
 import { ExtendedCombinedError } from '@/lib/types'
 import { isCodeSourceContext } from '@/lib/utils'
@@ -29,16 +30,17 @@ export function NewPageForm({
   }) => Promise<ExtendedCombinedError | void>
 }) {
   const { fetchingContextInfo, contextInfo } = useContext(PageContext)
+  const { selectedRepository, onSelectRepository } = useSelectedRepository()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const formSchema = z.object({
     titlePrompt: z.string().trim()
   })
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema)
   })
   const titlePrompt = form.watch('titlePrompt')
 
-  const [selectedRepoId, setSelectedRepoId] = useState<string | undefined>()
   const repos = useMemo(() => {
     return contextInfo?.sources.filter(x => isCodeSourceContext(x.sourceKind))
   }, [contextInfo?.sources])
@@ -48,7 +50,7 @@ export function NewPageForm({
   }
 
   const handleSelectRepo = (id: string | undefined) => {
-    setSelectedRepoId(id)
+    onSelectRepository(id)
     setTimeout(() => {
       focusInput()
     }, 10)
@@ -57,7 +59,7 @@ export function NewPageForm({
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     const error = await onSubmit({
       titlePrompt: values.titlePrompt.trim(),
-      codeSourceId: selectedRepoId
+      codeSourceId: selectedRepository?.id
     })
 
     if (error) {
@@ -105,7 +107,7 @@ export function NewPageForm({
           <RepoSelect
             repos={repos}
             isInitializing={fetchingContextInfo}
-            value={selectedRepoId}
+            value={selectedRepository?.sourceId}
             onChange={handleSelectRepo}
             placeholder="Select repository"
             showChevron

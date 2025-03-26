@@ -4,6 +4,7 @@
   "devDependencies": {
     "tabby-agent": "workspace:*",
     "tabby-threads": "workspace:*",
-    "turbo": "^2.4.4"
+    "turbo": "^2.4.4",
+    "tabby-chat-panel": "workspace:*"
   }
 }

@@ -7,7 +7,7 @@
   "repository": "https://github.com/TabbyML/tabby",
   "bugs": "https://github.com/TabbyML/tabby/issues",
   "license": "Apache-2.0",
-  "version": "1.23.0-dev",
+  "version": "1.25.0-dev",
   "keywords": [
     "ai",
     "autocomplete",
@@ -100,6 +100,11 @@
         "category": "Tabby"
       },
       {
+        "command": "tabby.chat.codeReviewCodeBlock",
+        "title": "Code Review",
+        "category": "Tabby"
+      },
+      {
         "command": "tabby.chat.generateCodeBlockDoc",
         "title": "Generate Docs",
         "category": "Tabby"
@@ -153,6 +158,11 @@
         "icon": "$(history)",
         "enablement": "tabby.chatSidePanelStatus === 'ready'",
         "category": "Tabby"
+      },
+      {
+        "command": "tabby.toggleLanguageInlineCompletion",
+        "title": "Toggle Language Inline Completion",
+        "category": "Tabby"
       }
     ],
     "submenus": [
@@ -169,14 +179,24 @@
           "group": "tabby.submenu.0edit@1"
         },
         {
+          "command": "tabby.chat.explainCodeBlock",
+          "when": "editorHasSelection && tabby.chatEnabled",
+          "group": "tabby.submenu.1edit@1"
+        },
+        {
+          "command": "tabby.chat.codeReviewCodeBlock",
+          "when": "editorHasSelection && tabby.chatEnabled",
+          "group": "tabby.submenu.1edit@2"
+        },
+        {
           "command": "tabby.chat.addRelevantContext",
           "when": "editorHasSelection && tabby.chatEnabled",
-          "group": "tabby.submenu.1chat@1"
+          "group": "tabby.submenu.2chat@1"
         },
         {
           "command": "tabby.chat.addFileContext",
           "when": "tabby.chatEnabled",
-          "group": "tabby.submenu.1chat@2"
+          "group": "tabby.submenu.2chat@2"
         }
       ],
       "commandPalette": [
@@ -357,6 +377,14 @@
                   "Automatic trigger when you stop typing",
                   "Manual trigger by pressing `Alt + \\`"
                 ]
+              },
+              "inlineCompletion.disabledLanguages": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "default": [],
+                "description": "List of language IDs for which code completion should be disabled. Use the 'Toggle Single Language Inline Completion' command to easily enable or disable completion for the current language."
               },
               "chatEdit.history": {
                 "type": "integer",

@@ -1,6 +1,11 @@
 import { uniq } from 'lodash-es'
 import moment from 'moment'
-import type { Filepath } from 'tabby-chat-panel'
+import type {
+  ChangeItem,
+  Filepath,
+  FileRange,
+  GetChangesParams
+} from 'tabby-chat-panel'
 
 import {
   ContextInfo,
@@ -8,13 +13,19 @@ import {
   ContextSourceKind
 } from '@/lib/gql/generates/graphql'
 import type { MentionAttributes } from '@/lib/types'
+import {
+  convertChangeItemsToContextContent,
+  hasChangesCommand
+} from '@/components/chat/git/utils'
 
 import {
   MARKDOWN_FILE_REGEX,
   MARKDOWN_SOURCE_REGEX,
+  PLACEHOLDER_COMMAND_REGEX,
   PLACEHOLDER_FILE_REGEX,
   PLACEHOLDER_SYMBOL_REGEX
 } from '../constants/regex'
+import { convertContextBlockToPlaceholder } from './markdown'
 
 export const isCodeSourceContext = (kind: ContextSourceKind) => {
   return [
@@ -213,6 +224,18 @@ export function encodeMentionPlaceHolder(value: string): string {
     }
   }
 
+  // encode the contextCommand placeholder
+  while ((match = PLACEHOLDER_COMMAND_REGEX.exec(value)) !== null) {
+    try {
+      newValue = newValue.replace(
+        match[0],
+        `[[contextCommand:"${encodeURIComponent(match[1])}"]]`
+      )
+    } catch (error) {
+      continue
+    }
+  }
+
   return newValue
 }
 
@@ -237,22 +260,140 @@ export function getTitleFromMessages(
   content: string,
   options?: { maxLength?: number }
 ) {
-  const firstLine = content.split('\n')[0] ?? ''
+  const processedContent = convertContextBlockToPlaceholder(content)
+  const firstLine = processedContent.split('\n')[0] ?? ''
+
   const cleanedLine = firstLine
     .replace(MARKDOWN_SOURCE_REGEX, value => {
-      const sourceId = value.slice(9, -2)
+      const sourceId = value.slice(9, -2).replaceAll(/\\/g, '')
       const source = sources.find(s => s.sourceId === sourceId)
       return source?.sourceName ?? ''
     })
-    .replace(MARKDOWN_FILE_REGEX, value => {
-      const filepath = value.slice(7, -2)
-      return resolveFileNameForDisplay(filepath)
+    .replace(PLACEHOLDER_FILE_REGEX, value => {
+      try {
+        const content = JSON.parse(value.slice(7, -2))
+        return resolveFileNameForDisplay(content.filepath)
+      } catch (e) {
+        return ''
+      }
+    })
+    .replace(PLACEHOLDER_SYMBOL_REGEX, value => {
+      try {
+        const content = JSON.parse(value.slice(9, -2))
+        return `@${content.label}`
+      } catch (e) {
+        return ''
+      }
+    })
+    .replace(PLACEHOLDER_COMMAND_REGEX, value => {
+      const command = value.slice(18, -3)
+      return `@${command}`
+    })
+    .replace(PLACEHOLDER_SYMBOL_REGEX, value => {
+      try {
+        const content = JSON.parse(value.slice(9, -2))
+        return `@${content.label}`
+      } catch (e) {
+        return ''
+      }
+    })
+    .replace(PLACEHOLDER_COMMAND_REGEX, value => {
+      const command = value.slice(19, -3)
+      return `@${command}`
     })
     .trim()
 
+    .trim()
   let title = cleanedLine
   if (options?.maxLength) {
     title = title.slice(0, options?.maxLength)
   }
   return title
+}
+
+/**
+ * Process all placeholders in a message and replace them with actual content
+ * @param message The original message containing placeholders
+ * @param options Various handlers for different types of placeholders
+ * @returns The processed message with all placeholders replaced
+ */
+export async function processingPlaceholder(
+  message: string,
+  options: {
+    getChanges?: (params: GetChangesParams) => Promise<ChangeItem[]>
+    readFileContent?: (info: FileRange) => Promise<string | null>
+  }
+): Promise<string> {
+  let processedMessage = message
+  if (hasChangesCommand(processedMessage) && options.getChanges) {
+    try {
+      const changes = await options.getChanges({})
+      const gitChanges = convertChangeItemsToContextContent(changes)
+      processedMessage = processedMessage.replaceAll(
+        /\[\[contextCommand:"changes"\]\]/g,
+        gitChanges
+      )
+    } catch (error) {
+      processedMessage = processedMessage.replaceAll(
+        /\[\[contextCommand:"changes"\]\]/g,
+        ''
+      )
+    }
+  }
+  if (options.readFileContent) {
+    const fileRegex = new RegExp(PLACEHOLDER_FILE_REGEX)
+    let match
+    let tempMessage = processedMessage
+    while ((match = fileRegex.exec(tempMessage)) !== null) {
+      try {
+        const fileInfoStr = match[1]
+        const fileInfo = JSON.parse(fileInfoStr) as Filepath
+        const content = await options.readFileContent({
+          filepath: fileInfo,
+          range: undefined
+        })
+        let replacement = ''
+        if (content) {
+          const fileInfoJSON = JSON.stringify(fileInfo).replace(/"/g, '\\"')
+          replacement = `\n\`\`\`context label='file' object='${fileInfoJSON}'\n${content}\n\`\`\`\n`
+        }
+        processedMessage = processedMessage.replace(match[0], replacement)
+        tempMessage = tempMessage.replace(match[0], replacement)
+        fileRegex.lastIndex = 0
+      } catch (error) {
+        const errorMessage = `\n*Error loading file*\n`
+        processedMessage = processedMessage.replace(match[0], errorMessage)
+        tempMessage = tempMessage.replace(match[0], errorMessage)
+        fileRegex.lastIndex = 0
+      }
+    }
+
+    const symbolRegex = new RegExp(PLACEHOLDER_SYMBOL_REGEX)
+    match = null
+    tempMessage = processedMessage
+    while ((match = symbolRegex.exec(tempMessage)) !== null) {
+      try {
+        const symbolInfoStr = match[1]
+        const symbolInfo = JSON.parse(symbolInfoStr)
+        const content = await options.readFileContent({
+          filepath: symbolInfo.filepath,
+          range: symbolInfo.range
+        })
+        let replacement = ''
+        if (content) {
+          const symbolInfoJSON = JSON.stringify(symbolInfo).replace(/"/g, '\\"')
+          replacement = `\n\`\`\`context label='symbol' object='${symbolInfoJSON}'\n${content}\n\`\`\`\n`
+        }
+        processedMessage = processedMessage.replace(match[0], replacement)
+        tempMessage = tempMessage.replace(match[0], replacement)
+        symbolRegex.lastIndex = 0
+      } catch (error) {
+        const errorMessage = `\n*Error loading symbol*\n`
+        processedMessage = processedMessage.replace(match[0], errorMessage)
+        tempMessage = tempMessage.replace(match[0], errorMessage)
+        symbolRegex.lastIndex = 0
+      }
+    }
+  }
+  return processedMessage
 }
